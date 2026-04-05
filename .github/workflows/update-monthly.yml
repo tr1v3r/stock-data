@@ -1,0 +1,83 @@
+name: update-monthly
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 7 * * 1-5'
+
+concurrency:
+  group: update-monthly
+  cancel-in-progress: false
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  update-monthly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout stock-data
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+
+      - name: Select target monthly files
+        run: |
+          month="$(TZ=Asia/Shanghai date +%Y-%m)"
+          echo "CURRENT_MONTH=${month}" >> "$GITHUB_ENV"
+          git sparse-checkout init --no-cone
+          git sparse-checkout set \
+            "monthly/daily_quotes/${month}.csv" \
+            "monthly/sector_daily_quotes/${month}.csv"
+
+      - name: Checkout skr
+        uses: actions/checkout@v4
+        with:
+          repository: tr1v3r/skr
+          ref: master
+          path: _skr
+          token: ${{ secrets.SKR_REPO_TOKEN }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache-dependency-path: _skr/go.sum
+
+      - name: Build skr
+        run: make -C _skr build
+
+      - name: Export latest monthly data
+        run: |
+          set -euo pipefail
+          ./_skr/output/bin/skr eco --export-latest-csv --export-dir ./monthly 2>&1 | tee export.log
+          if grep -q "partial failures" export.log; then
+            exit 1
+          fi
+
+      - name: Check for monthly changes
+        id: changes
+        run: |
+          git add "monthly/daily_quotes/${CURRENT_MONTH}.csv" "monthly/sector_daily_quotes/${CURRENT_MONTH}.csv"
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit monthly updates
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git remote set-url origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git commit -m "chore: update monthly data"
+          git push origin HEAD:"${GITHUB_REF_NAME}"
