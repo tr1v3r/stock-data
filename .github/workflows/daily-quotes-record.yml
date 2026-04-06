@@ -1,4 +1,4 @@
-name: update-monthly
+name: daily-quotes-record
 
 on:
   workflow_dispatch:
@@ -6,14 +6,14 @@ on:
     - cron: '30 7 * * 1-5'
 
 concurrency:
-  group: update-monthly
+  group: daily-quotes-record
   cancel-in-progress: false
 
 env:
   TZ: Asia/Shanghai
 
 jobs:
-  update-monthly:
+  daily-quotes-record:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
