@@ -79,5 +79,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git remote set-url origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-          git commit -m "chore: update monthly data"
+          git commit -m "chore: record $(date +%Y-%m-%d) daily quotes"
           git push origin HEAD:"${GITHUB_REF_NAME}"
