@@ -57,10 +57,25 @@ jobs:
       - name: Export latest monthly data
         run: |
           set -euo pipefail
-          ./_skr/output/bin/skr eco --export-latest-csv --export-dir ./monthly 2>&1 | tee export.log
-          if grep -q "partial failures" export.log; then
-            exit 1
-          fi
+          max_attempts=3
+          for attempt in $(seq 1 "$max_attempts"); do
+            ./_skr/output/bin/skr eco --export-latest-csv --export-dir ./monthly 2>&1 | tee export.log
+            fatal_msg="$(grep -oP '\[FATAL\].*' export.log || true)"
+            if [ -n "$fatal_msg" ]; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                echo "::warning::Attempt $attempt/$max_attempts failed: $fatal_msg — retrying in 30s..."
+                sleep 30
+                continue
+              fi
+              echo "::error::$fatal_msg"
+              exit 1
+            fi
+            if grep -q "partial failures" export.log; then
+              echo "::error::skr reported partial failures — check export.log"
+              exit 1
+            fi
+            break
+          done
 
       - name: Check for monthly changes
         id: changes
