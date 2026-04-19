@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: tr1v3r/skr
-          ref: master
+          ref: 3a7a388d39d9d07aa8e0f3aa22c33bdf6682b141
           path: _skr
           token: ${{ secrets.SKR_REPO_TOKEN }}
           fetch-depth: 1
