@@ -3,7 +3,7 @@ name: daily-quotes-record
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 7 * * 1-5"
+    - cron: "0 7 * * 1-5"
 
 concurrency:
   group: daily-quotes-record
